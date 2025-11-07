@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Property Booking Form</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div id="loadingContainer" class="loading">
+      Loading...
+    </div>
+
+    <div id="errorContainer" style="display: none;">
+      <div class="card">
+        <div class="error-message" id="errorMessage"></div>
+      </div>
+    </div>
+
+    <div id="formContainer" style="display: none;">
+      <div class="card">
+        <div class="header">
+          <img src="monty_logo_blue.png" alt="Monty" class="monty-logo-header">
+          <p class="powered-by-header">Powered by Monty</p>
+        </div>
+
+        <form id="bookingForm" enctype="multipart/form-data">
+          <!-- Agent Details -->
+          <div class="section">
+            <h2 class="section-title">Agent Details</h2>
+            <div class="form-group">
+              <label for="agencyName">Agency Name</label>
+              <input type="text" id="agencyName" name="agencyName" required>
+            </div>
+            <div class="form-group">
+              <label for="agentName">Agent Full Name</label>
+              <input type="text" id="agentName" name="agentName" required>
+            </div>
+          </div>
+
+          <!-- Client Details -->
+          <div class="section">
+            <h2 class="section-title">Client Details</h2>
+            <div class="form-group">
+              <label for="clientName">Full Name</label>
+              <input type="text" id="clientName" name="clientName" required>
+            </div>
+            <div class="form-group">
+              <label for="clientMobile">Mobile Number</label>
+              <input type="tel" id="clientMobile" name="clientMobile" required>
+            </div>
+            <div class="form-group">
+              <label for="clientEmail">Email Address</label>
+              <input type="email" id="clientEmail" name="clientEmail" required>
+            </div>
+            <div class="form-group">
+              <label for="clientAddress">Home Address</label>
+              <input type="text" id="clientAddress" name="clientAddress" required>
+            </div>
+          </div>
+
+          <!-- Documents -->
+          <div class="section">
+            <h2 class="section-title">Documents</h2>
+            <div class="form-group">
+              <label for="clientPassport">Client Passport</label>
+              <input type="file" id="clientPassport" name="clientPassport" accept="image/*,application/pdf">
+            </div>
+            <div class="form-group">
+              <label for="clientEmiratesId">Client Emirates ID</label>
+              <input type="file" id="clientEmiratesId" name="clientEmiratesId" accept="image/*,application/pdf">
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <button type="submit" class="submit-btn" id="submitBtn">Submit</button>
+        </form>
+
+        <div id="successMessage" class="success-message" style="display: none;">
+          Form submitted successfully!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Get URL parameter
+    function getUrlParameter(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+
+    // Load developer data and initialize form
+    async function initializeForm() {
+      const devParam = getUrlParameter('dev');
+
+      if (!devParam) {
+        showError('No developer specified. Please add ?dev=DEVELOPER_NAME to the URL.');
+        return;
+      }
+
+      try {
+        const response = await fetch('developers.json');
+        const developers = await response.json();
+
+        const developerData = developers[devParam.toLowerCase()];
+
+        if (!developerData) {
+          showError(`Developer "${devParam}" not found. Please check the URL parameter.`);
+          return;
+        }
+
+        // Apply branding
+        applyBranding(developerData);
+
+        // Store webhook URL for form submission
+        window.developerWebhook = developerData.webhook;
+        window.developerName = developerData.name;
+
+        // Show form
+        document.getElementById('loadingContainer').style.display = 'none';
+        document.getElementById('formContainer').style.display = 'block';
+
+      } catch (error) {
+        showError('Failed to load developer data. Please try again.');
+        console.error('Error:', error);
+      }
+    }
+
+    // Apply developer branding
+    function applyBranding(data) {
+      // Update page title
+      document.title = 'Monty - Booking Form';
+    }
+
+    // Show error message
+    function showError(message) {
+      document.getElementById('loadingContainer').style.display = 'none';
+      document.getElementById('errorMessage').textContent = message;
+      document.getElementById('errorContainer').style.display = 'block';
+    }
+
+    // Handle form submission
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeForm();
+
+      document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+
+        try {
+          // Create FormData object manually
+          const formData = new FormData();
+
+          // Add all text/email/tel inputs
+          const textInputs = e.target.querySelectorAll('input[type="text"], input[type="email"], input[type="tel"]');
+          textInputs.forEach(input => {
+            formData.append(input.name, input.value);
+          });
+
+          // Add file inputs only if they have files
+          const fileInputs = e.target.querySelectorAll('input[type="file"]');
+          fileInputs.forEach(input => {
+            if (input.files && input.files.length > 0) {
+              formData.append(input.name, input.files[0]);
+            }
+          });
+
+          // Add developer name to form data
+          formData.append('developer', window.developerName);
+
+          // Submit to webhook
+          const response = await fetch(window.developerWebhook, {
+            method: 'POST',
+            body: formData
+          });
+
+          if (response.ok) {
+            // Show success message
+            document.getElementById('successMessage').style.display = 'block';
+            document.getElementById('bookingForm').reset();
+            submitBtn.textContent = 'Submit';
+            submitBtn.disabled = false;
+
+            // Hide success message after 5 seconds
+            setTimeout(() => {
+              document.getElementById('successMessage').style.display = 'none';
+            }, 5000);
+          } else {
+            throw new Error('Submission failed');
+          }
+        } catch (error) {
+          alert('Failed to submit form. Please try again.');
+          console.error('Submission error:', error);
+          submitBtn.textContent = 'Submit';
+          submitBtn.disabled = false;
+        }
+      });
+    });
+  </script>
+</body>
+</html>
