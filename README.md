@@ -28,11 +28,14 @@ Simply upload all files to your web server. No build process required!
 
 ```
 Client_Submission/
-├── index.html              # Main form page
-├── style.css               # Styling (blue-grey theme)
-├── developers.json         # Developer configurations
-├── monty_logo_blue.png    # Monty branding logo
-└── README.md              # This file
+├── index.html                           # Main form page
+├── style.css                            # Styling (blue-grey theme)
+├── developers.json                      # Developer configurations
+├── monty_logo_blue.png                 # Monty branding logo
+├── n8n-salesforce-sync-workflow.json   # n8n workflow template (NEW)
+├── N8N_SETUP_GUIDE.md                  # n8n setup instructions (NEW)
+├── README.md                            # This file
+└── .gitignore                           # Git ignore file
 ```
 
 ## 🔧 How It Works
@@ -89,9 +92,16 @@ Then share: `https://yoursite.com/index.html?dev=newdeveloper`
 
 ## 📤 Form Fields
 
-### Agent Details
+### Agent Details (External Broker/Agency)
 - Agency Name (required)
 - Agent Full Name (required)
+
+### Developer Agent (Internal Employee)
+- Select Developer Agent (required) - **NEW!**
+  - Typeahead search field
+  - Pulls data from Supabase
+  - Auto-synced from Salesforce every 30 minutes
+  - Submits Salesforce User ID for automatic assignment
 
 ### Client Details
 - Full Name (required)
@@ -104,6 +114,72 @@ Then share: `https://yoursite.com/index.html?dev=newdeveloper`
 - Client Emirates ID (optional)
 
 **Note**: Both documents are optional to accommodate different client situations (tourists, new expats, etc.)
+
+## 🏗️ Developer Agent Integration (NEW)
+
+### Architecture Overview
+
+The form now includes a **Developer Agent** typeahead field that pulls internal employees from each developer's Salesforce CRM.
+
+**Data Flow:**
+```
+Salesforce (each developer) → n8n (sync every 30 min) → Supabase → Form Typeahead
+```
+
+### Components
+
+1. **Salesforce** - Source of truth for developer agents (internal employees)
+   - Each developer has their own Salesforce instance
+   - Stores active Users with IsActive = true
+
+2. **n8n Workflow** - Syncs Salesforce → Supabase
+   - One workflow per developer (Abra, Emaar, DAMAC, Nakheel)
+   - Runs every 30 minutes
+   - SOQL Query: `SELECT Id, Name FROM User WHERE IsActive = true`
+   - See `N8N_SETUP_GUIDE.md` for setup instructions
+
+3. **Supabase Table** - Cache layer for fast lookups
+   - Project: `Client_Submissions_Monty`
+   - Table: `developer_agents`
+   - Fields: `salesforce_id`, `developer_key`, `agent_name`, `is_active`
+   - Region: ap-south-1 (Mumbai - closest to Dubai)
+
+4. **Form Typeahead** - User-facing search field
+   - Queries Supabase filtered by developer
+   - Fast client-side search
+   - Shows agent names
+   - Submits Salesforce User ID
+
+### Supabase Table Structure
+
+```sql
+CREATE TABLE developer_agents (
+  id uuid PRIMARY KEY,
+  salesforce_id text NOT NULL,        -- Salesforce User ID
+  developer_key text NOT NULL,        -- "abra", "emaar", "damac", "nakheel"
+  agent_name text NOT NULL,           -- "Yassir El Ghazi"
+  is_active boolean DEFAULT true,
+  created_at timestamp,
+  updated_at timestamp,
+  UNIQUE(salesforce_id, developer_key)
+);
+```
+
+### Why This Architecture?
+
+- ✅ **Fast**: Form loads instantly (< 100ms) - no waiting for Salesforce API
+- ✅ **Scalable**: Add new developers = just add new n8n workflow
+- ✅ **Reliable**: Form works even if one Salesforce is down
+- ✅ **No rate limits**: Salesforce only queried every 30 min, not on every form load
+- ✅ **Multiple CRMs**: Each developer's Salesforce syncs independently
+
+### Setup Guide
+
+See **`N8N_SETUP_GUIDE.md`** for detailed instructions on:
+- Importing the n8n workflow template
+- Connecting Salesforce credentials
+- Configuring Supabase
+- Testing and activating the sync
 
 ## 🔗 n8n Integration
 
@@ -119,18 +195,40 @@ All forms POST to: `https://thomasmccone.app.n8n.cloud/webhook/monty_client_form
 
 ```javascript
 {
-  // Text fields
+  // External Agent fields
   agencyName: "ABC Realty",
   agentName: "John Doe",
+
+  // Developer Agent fields (NEW!)
+  developerAgent: "Yassir El Ghazi",           // Display name
+  developerAgentId: "005Dn000001234",          // Salesforce User ID ⭐
+
+  // Client fields
   clientName: "Jane Smith",
   clientMobile: "+971501234567",
   clientEmail: "jane@example.com",
   clientAddress: "123 Dubai Marina",
+
+  // Developer routing
   developer: "Abra Properties",
 
   // Files (binary data, only if uploaded)
   clientPassport: [File],
   clientEmiratesId: [File]
+}
+```
+
+**Using the Salesforce User ID:**
+When creating a Lead/Contact in Salesforce, use `developerAgentId` to automatically assign ownership:
+
+```javascript
+{
+  FirstName: "Jane",
+  LastName: "Smith",
+  Email: "jane@example.com",
+  Phone: "+971501234567",
+  OwnerId: developerAgentId,  // ⭐ Auto-assigns to correct agent!
+  LeadSource: "Monty Form"
 }
 ```
 
@@ -256,4 +354,4 @@ Proprietary - Monty Real Estate Solutions
 
 **Built with ❤️ by Monty**
 
-*Last Updated: January 2025*
+*Last Updated: January 2025 - Added Developer Agent Integration*

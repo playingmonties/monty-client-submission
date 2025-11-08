@@ -200,6 +200,57 @@ input[type="file"]:hover {
   animation: fadeIn 0.4s ease-out;
 }
 
+/* Typeahead Dropdown */
+.agent-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1.5px solid #708090;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  max-height: 240px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-top: -10px;
+}
+
+.agent-dropdown-item {
+  padding: 12px 15px;
+  cursor: pointer;
+  font-size: 15px;
+  color: #1d1d1f;
+  transition: background 0.15s ease;
+  border-bottom: 1px solid #e8eaed;
+}
+
+.agent-dropdown-item:last-child {
+  border-bottom: none;
+  border-radius: 0 0 10px 10px;
+}
+
+.agent-dropdown-item:hover {
+  background: #f8f9fa;
+  color: #36454f;
+}
+
+.agent-dropdown-item.no-results {
+  cursor: default;
+  color: #86868b;
+  font-style: italic;
+}
+
+.agent-dropdown-item.no-results:hover {
+  background: #ffffff;
+}
+
+/* Make parent form-group relative for dropdown positioning */
+.form-group {
+  position: relative;
+}
+
 /* Responsive */
 @media (max-width: 640px) {
   body {
@@ -262,5 +313,15 @@ input[type="file"]:hover {
   .loading {
     font-size: 14px;
     padding: 14px;
+  }
+
+  .agent-dropdown {
+    max-height: 200px;
+    font-size: 16px;
+  }
+
+  .agent-dropdown-item {
+    padding: 14px 12px;
+    font-size: 16px;
   }
 }

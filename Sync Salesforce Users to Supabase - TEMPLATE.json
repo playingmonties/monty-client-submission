@@ -1,0 +1,263 @@
+{
+  "name": "Sync Salesforce Users to Supabase - TEMPLATE",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -144,
+        -224
+      ],
+      "id": "febd4fb3-6ea6-4589-98e7-fbbfc7ed863e"
+    },
+    {
+      "parameters": {
+        "resource": "user",
+        "operation": "getAll",
+        "options": {}
+      },
+      "name": "Salesforce - Get Active Users",
+      "type": "n8n-nodes-base.salesforce",
+      "typeVersion": 1,
+      "position": [
+        80,
+        0
+      ],
+      "id": "1a6c2d8a-9fad-4d61-878b-11b21a1f10fb",
+      "credentials": {
+        "salesforceOAuth2Api": {
+          "id": "poVZsfj0w90XD6Za",
+          "name": "Abra - T.McCone"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        0
+      ],
+      "id": "3f7df275-7242-4594-b569-15c4d014e6e1",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "developer_agents"
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        864,
+        -192
+      ],
+      "id": "31331642-ea42-4c9e-a662-373f27c64a91",
+      "name": "Update a row",
+      "credentials": {
+        "supabaseApi": {
+          "id": "992WT8hxg4GfDx8n",
+          "name": "Client Submission Form"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "8401cb65-285d-48b7-809e-c09cd8a20839",
+              "name": "salesforce_id",
+              "value": "={{ $json.Id }}",
+              "type": "string"
+            },
+            {
+              "id": "85a94671-dcef-4455-939b-bb6dfaa9a499",
+              "name": "agent_name",
+              "value": "={{ $json.Name }}",
+              "type": "string"
+            },
+            {
+              "id": "a3c2738b-fbc8-4c02-979f-6aabfa5049bf",
+              "name": "",
+              "value": "",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        320,
+        0
+      ],
+      "id": "66c960e9-3e21-4c07-8ffb-ba0e41968395",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Salesforce - Get Active Users').item.json.Email.includes(\"abra\") }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    },
+                    "id": "d6c4082a-0042-44c1-9f44-d3b2c0c5ac9b"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "e490bcdc-8d4f-4c92-9205-462cee6758c5",
+                    "leftValue": "={{ $('Salesforce - Get Active Users').item.json.Email.includes(\"emaar\") }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a2af1046-15bb-4350-bd6b-1573952f4a7a",
+                    "leftValue": "={{ $('Salesforce - Get Active Users').item.json.Email.includes(\"peace\") }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "true",
+                      "singleValue": true
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        560,
+        -16
+      ],
+      "id": "56ecf82f-df75-4c17-9237-06f7ff0a9eb7",
+      "name": "Switch"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        []
+      ]
+    },
+    "Salesforce - Get Active Users": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Salesforce - Get Active Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Update a row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "31c8a5d5-111d-4d20-bf9f-5002cc32425f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e28cb69fff4b4168dfec8a427ede6dcf3f6406174594750a5ad4196dc1ee3a38"
+  },
+  "id": "DkSH5zIS87Y1bZMl",
+  "tags": []
+}

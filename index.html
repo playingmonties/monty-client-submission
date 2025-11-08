@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="container">
@@ -39,6 +40,24 @@
             <div class="form-group">
               <label for="agentName">Agent Full Name</label>
               <input type="text" id="agentName" name="agentName" required>
+            </div>
+          </div>
+
+          <!-- Developer Agent -->
+          <div class="section">
+            <h2 class="section-title">Developer Agent</h2>
+            <div class="form-group">
+              <label for="developerAgent">Select Developer Agent</label>
+              <input
+                type="text"
+                id="developerAgent"
+                name="developerAgent"
+                placeholder="Start typing to search..."
+                autocomplete="off"
+                required
+              >
+              <input type="hidden" id="developerAgentId" name="developerAgentId">
+              <div id="agentDropdown" class="agent-dropdown" style="display: none;"></div>
             </div>
           </div>
 
@@ -88,6 +107,15 @@
   </div>
 
   <script>
+    // Supabase Configuration
+    const SUPABASE_URL = 'https://kosbeatukcmzcbuhqexh.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtvc2JlYXR1a2NtemNidWhxZXhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI1OTAzMjAsImV4cCI6MjA3ODE2NjMyMH0.livSzUdKX1z8QLtpiwgFdrTjRW2tDh_tPTpcH52ADZU';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // Store agents globally
+    let allAgents = [];
+    let selectedAgentId = null;
+
     // Get URL parameter
     function getUrlParameter(name) {
       const urlParams = new URLSearchParams(window.location.search);
@@ -121,6 +149,12 @@
         window.developerWebhook = developerData.webhook;
         window.developerName = developerData.name;
 
+        // Load developer agents from Supabase
+        allAgents = await loadDeveloperAgents(devParam.toLowerCase());
+
+        // Initialize typeahead
+        initializeTypeahead();
+
         // Show form
         document.getElementById('loadingContainer').style.display = 'none';
         document.getElementById('formContainer').style.display = 'block';
@@ -135,6 +169,95 @@
     function applyBranding(data) {
       // Update page title
       document.title = 'Monty - Booking Form';
+    }
+
+    // Load developer agents from Supabase
+    async function loadDeveloperAgents(developerKey) {
+      try {
+        const { data, error } = await supabase
+          .from('developer_agents')
+          .select('salesforce_id, agent_name')
+          .eq('developer_key', developerKey)
+          .eq('is_active', true)
+          .order('agent_name');
+
+        if (error) {
+          console.error('Error loading agents:', error);
+          return [];
+        }
+
+        return data || [];
+      } catch (error) {
+        console.error('Error loading agents:', error);
+        return [];
+      }
+    }
+
+    // Initialize typeahead functionality
+    function initializeTypeahead() {
+      const input = document.getElementById('developerAgent');
+      const dropdown = document.getElementById('agentDropdown');
+      const hiddenInput = document.getElementById('developerAgentId');
+
+      // Show dropdown on focus
+      input.addEventListener('focus', () => {
+        if (allAgents.length > 0) {
+          showFilteredAgents('');
+        }
+      });
+
+      // Filter agents as user types
+      input.addEventListener('input', (e) => {
+        const searchTerm = e.target.value;
+        showFilteredAgents(searchTerm);
+      });
+
+      // Hide dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.style.display = 'none';
+        }
+      });
+    }
+
+    // Show filtered agents in dropdown
+    function showFilteredAgents(searchTerm) {
+      const dropdown = document.getElementById('agentDropdown');
+      const input = document.getElementById('developerAgent');
+
+      // Filter agents by search term
+      const filteredAgents = allAgents.filter(agent =>
+        agent.agent_name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      // Build dropdown HTML
+      if (filteredAgents.length === 0) {
+        dropdown.innerHTML = '<div class="agent-dropdown-item no-results">No agents found</div>';
+      } else {
+        dropdown.innerHTML = filteredAgents.map(agent => `
+          <div class="agent-dropdown-item" data-id="${agent.salesforce_id}" data-name="${agent.agent_name}">
+            ${agent.agent_name}
+          </div>
+        `).join('');
+
+        // Add click handlers
+        dropdown.querySelectorAll('.agent-dropdown-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const agentId = item.getAttribute('data-id');
+            const agentName = item.getAttribute('data-name');
+
+            // Set values
+            input.value = agentName;
+            document.getElementById('developerAgentId').value = agentId;
+            selectedAgentId = agentId;
+
+            // Hide dropdown
+            dropdown.style.display = 'none';
+          });
+        });
+      }
+
+      dropdown.style.display = 'block';
     }
 
     // Show error message
@@ -175,6 +298,14 @@
 
           // Add developer name to form data
           formData.append('developer', window.developerName);
+
+          // Add developer agent data (if selected)
+          const developerAgentId = document.getElementById('developerAgentId').value;
+          const developerAgentName = document.getElementById('developerAgent').value;
+          if (developerAgentId && developerAgentName) {
+            formData.append('developerAgentId', developerAgentId);
+            formData.append('developerAgent', developerAgentName);
+          }
 
           // Submit to webhook
           const response = await fetch(window.developerWebhook, {

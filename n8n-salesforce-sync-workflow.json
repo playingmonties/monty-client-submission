@@ -1,0 +1,131 @@
+{
+  "name": "Sync Salesforce Users to Supabase - TEMPLATE",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "query",
+        "query": "SELECT Id, Name FROM User WHERE IsActive = true ORDER BY Name"
+      },
+      "name": "Salesforce - Get Active Users",
+      "type": "n8n-nodes-base.salesforce",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "credentials": {
+        "salesforceOAuth2Api": {
+          "id": "YOUR_SALESFORCE_CREDENTIAL_ID",
+          "name": "Salesforce - Abra"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transform Salesforce data for Supabase\nconst developerKey = 'abra'; // Change this for each developer (abra, emaar, damac, nakheel)\n\nconst transformedItems = [];\n\nfor (const item of $input.all()) {\n  transformedItems.push({\n    json: {\n      salesforce_id: item.json.Id,\n      developer_key: developerKey,\n      agent_name: item.json.Name,\n      is_active: true\n    }\n  });\n}\n\nreturn transformedItems;"
+      },
+      "name": "Transform Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "tableId": "developer_agents",
+        "keysToMatch": "salesforce_id,developer_key",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "salesforce_id",
+              "fieldValue": "={{ $json.salesforce_id }}"
+            },
+            {
+              "fieldId": "developer_key",
+              "fieldValue": "={{ $json.developer_key }}"
+            },
+            {
+              "fieldId": "agent_name",
+              "fieldValue": "={{ $json.agent_name }}"
+            },
+            {
+              "fieldId": "is_active",
+              "fieldValue": "={{ $json.is_active }}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{ $now }}"
+            }
+          ]
+        }
+      },
+      "name": "Supabase - Upsert Agents",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "supabaseApi": {
+          "id": "YOUR_SUPABASE_CREDENTIAL_ID",
+          "name": "Supabase - Client Submissions"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Salesforce - Get Active Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salesforce - Get Active Users": {
+      "main": [
+        [
+          {
+            "node": "Transform Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transform Data": {
+      "main": [
+        [
+          {
+            "node": "Supabase - Upsert Agents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-01-08T08:30:00.000Z",
+  "versionId": "1"
+}
